@@ -1,0 +1,14 @@
+<!-- templates/index.html -->
+<html>
+    <head>
+        <title>Sheetdrop</title>
+    </head>
+    <body>
+        <h1>Sheetdrop</h1>
+        <ul>
+            {% for file_id, file in files.items() %}
+            <li><a href='/file/{{file_id}}'>{{file.name}}</a></li>
+            {% endfor %}
+        </ul>
+    </body>
+</html>

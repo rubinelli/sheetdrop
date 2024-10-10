@@ -1,0 +1,39 @@
+alembic==1.13.3
+fastapi==0.115.0
+fastapi-cli==0.0.5
+Jinja2==3.1.4
+numpy==1.26.4
+openpyxl==3.1.5
+pandas==2.2.3
+pandera==0.20.4
+pyarrow==17.0.0
+pydantic==2.9.2
+pydantic_core==2.23.4
+PyYAML==6.0.2
+SQLAlchemy==2.0.35
+starlette==0.38.6
+uvicorn==0.31.0
+# if you are not using AWS, you can remove these dependencies
+awswrangler==3.9.1
+boto3==1.35.37
+# if you are not using GCP, you can remove these dependencies
+gcsfs==2024.9.0.post1
+google_api_core==2.21.0
+google-cloud-storage==2.18.2
+# if you are not saving as Delta Lake, you can remove this dependency
+deltalake==0.20.2
+# if you are not saving as ORC, you can remove this dependency
+pyorc==0.9.0
+# from this point on, keep only the driver for the DB you plan to use
+# PostgreSQL / Redshift
+psycopg2=2.9.9
+# MySQL
+PyMySQL==1.1.1
+# Oracle
+cx_Oracle==8.3.0
+# MS SQL Server / Sybase
+pyodbc==5.1.0
+# IBM DB2
+ibm_db==3.2.3
+# Firebird
+fdb==2.0.2

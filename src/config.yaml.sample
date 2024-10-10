@@ -1,0 +1,28 @@
+# Supported databases
+# make sure to edit requirements.txt to import the correct database driver
+# SQLite
+# database_url: sqlite:///sheetdrop.db
+# PostgreSQL
+# database_url: postgresql://user:password@localhost/sheetdrop
+# MySQL
+# database_url: mysql+pymysql://user:password@localhost/sheetdrop
+# Oracle
+# database_url: oracle+cx_oracle://user:password@localhost/sheetdrop
+# Microsoft SQL Server
+# database_url: mssql+pyodbc://user:password@localhost/sheetdrop?driver=ODBC+Driver+17+for+SQL+Server
+# IBM DB2
+# database_url: db2+ibm_db://user:password@localhost/sheetdrop
+# Firebird
+# database_url: firebird://user:password@localhost/sheetdrop
+# Sybase
+# database_url: sybase+pyodbc://user:password@localhost/sheetdrop?driver=ODBC+Driver+17+for+Sybase
+# Redshift
+# database_url: postgresql://user:password@localhost/sheetdrop?driver=psycopg2&host=abc123xyz789.redshift.amazonaws.com
+
+# URL used by SQLAlchemy to connect to the utility database
+database_url: sqlite:///sheetdrop.db
+# Schema where utility tables will be created
+database_schema: sheetdrop
+# Prefix for utility table names
+database_table_prefix:
+
