@@ -49,13 +49,13 @@ def convert_file_to_dataframe_dict(file_id: str, config: MultipleSheetConfigurat
     with open(file_path, "rb") as f:
         return pd.read_excel(f, **config.load_params)
 
-def store_temp_file(file: io.BytesIO, file_id: str) -> str:
+def store_temp_file(file_id: str, file: io.BytesIO) -> str:
     """
     Stores a file in a temporary directory.
-    file: io.BytesIO
-        The contents of the file to store
     file_id: str
         The id of the file to store
+    file: io.BytesIO
+        The contents of the file to store
     Returns:
         The path of the stored file
     """

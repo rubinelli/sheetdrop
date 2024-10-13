@@ -25,6 +25,19 @@ configuration = Configuration(
     })
 )
 ```
+You can check the [Pandera documentation](https://pandera.readthedocs.io/en/stable/) for how to declare your schema and your validation rules.
+
+When loading from CSV, we use Pandas's [read_csv](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html) function. 
+
+Conversely, when loading from Excel, we use [pandas.read_excel](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_excel.html).
+
+You can check the documentation to see what arguments you can pass to these functions through `load_params`.
+
+#### Multiple sheets
+
+This option is supported by the `MultipleSheetConfiguration` class and only available when loading from Excel.
+
+When specifying multiple sheets, you shouldn't specify the `sheets` argument in `load_params`. Instead, these are collected from each `sheet` param in your list. This param can be the sheet's index (an int) or its name (a string).
 
 ### General configuration file
 
@@ -32,7 +45,10 @@ The application won't run without a `config.yaml` configuration file in the root
 
 - `database_url`: URL used by SQLAlchemy to connect to the utility database
 - `database_schema`: Schema where utility tables will be created
-- `database_prefix`: Prefix for utility table names
+
+### Requirements
+
+The application includes a `requirements.txt.sample` file. You can customize this file and save it as `requirements.txt` to include only the dependencies you need.
 
 ## Running the application
 

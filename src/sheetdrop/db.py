@@ -1,6 +1,10 @@
 import sqlalchemy
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import select, desc
+from sheetdrop.dbmodels import FileStatus, FileStatusDetail
 
-def create_engine(url: str) -> sqlalchemy.engine.Engine:
+def create_engine(url: str) -> Engine:
     """Create a database engine for use within FastApi
     Parameters:
         url: str
@@ -11,25 +15,69 @@ def create_engine(url: str) -> sqlalchemy.engine.Engine:
     """
     return sqlalchemy.create_engine(url)
 
-def create_tables(engine: sqlalchemy.engine.Engine, schema: str, table_prefix: str) -> None:
-    """Create the tables in the database
+def save_file_status_v1(engine: Engine, file_id: str, status: str, status_detail: list[str]) -> None:
+    """Save the status of a file in the database
     Parameters:
         engine: sqlalchemy.engine.Engine
             The engine for the database
-        schema: str
-            The schema in which to create the tables
-        table_prefix: str
-            The prefix of the table names
+        file_id: str
+            The ID of the file
+        status: str
+            The status of the file
+        status_detail: list[str]
+            The detail of the status
     """
-    metadata = sqlalchemy.MetaData(schema=schema)
-    prefix = table_prefix or ""
-    file_status = sqlalchemy.Table(
-        f"{prefix}file_status",
-        metadata,
-        sqlalchemy.Column("id", sqlalchemy.Integer, autoincrement=True, primary_key=True),
-        sqlalchemy.Column("file_id", sqlalchemy.String, index=True, nullable=False),
-        sqlalchemy.Column("status", sqlalchemy.String, nullable=False),
-        sqlalchemy.Column("status_detail", sqlalchemy.String),
-    )
+    with engine.connect() as connection:
+        result = connection.execute(FileStatus.__table__.insert(), file_id=file_id, status=status)
+        file_status_id = result.inserted_primary_key[0]
+        for detail in status_detail:
+            connection.execute(FileStatusDetail.__table__.insert(), file_id=file_id, file_status_id=file_status_id, status_detail=detail)
 
-    metadata.create_all(engine)
+
+def save_file_status(engine: Engine, file_id: str, status: str, status_detail: list[str] = None) -> None:
+    """Save the status of a file in the database
+    Parameters:
+        engine: sqlalchemy.engine.Engine
+            The engine for the database
+        file_id: str    
+            The ID of the file
+        status: str 
+            The status of the file
+        status_detail: list[str]    
+            The detail of the status
+    """
+    # Create a session
+    with Session(engine) as session:
+        # Create a new FileStatus entry
+        new_status = FileStatus(file_id=file_id, status=status)
+        # Add the status details to the new status
+        for detail in status_detail or []:
+            new_status_detail = FileStatusDetail(status_detail=detail)
+            new_status.status_details.append(new_status_detail)
+        # Add the new status (along with its details) to the session
+        session.add(new_status)
+        # Commit the transaction to save the new status and details
+        session.commit()
+
+def load_latest_file_status(engine: Engine, file_id: str) -> FileStatus:
+    """Load the latest status of a file
+    
+    Parameters:
+        engine: sqlalchemy.engine.Engine
+            The engine for the database
+        file_id: str
+            The ID of the file
+            
+    Returns:
+        FileStatus
+            The latest status of the file, or None if no status is found
+    """
+    # Create a session
+    with Session(engine) as session:
+        # Query to get the latest FileStatus by file_id, ordered by timestamp descending
+        stmt = select(FileStatus).where(FileStatus.file_id == file_id).order_by(desc(FileStatus.status_id))
+        latest_status = session.scalars(stmt).first()
+        # Get the status details from the latest status, to force eager loading
+        details = latest_status.status_details if latest_status else None
+
+        return latest_status

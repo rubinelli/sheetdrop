@@ -23,6 +23,4 @@
 database_url: sqlite:///sheetdrop.db
 # Schema where utility tables will be created
 database_schema: sheetdrop
-# Prefix for utility table names
-database_table_prefix:
 
