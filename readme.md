@@ -2,6 +2,8 @@
 
 A web application for validating, converting, and storing CSV and Excel files in a data lake.
 
+![Sample UI](docs/sample.png?raw=true)
+
 ## Configuration
 
 ### File definitions
