@@ -20,11 +20,11 @@ configuration = Configuration(
     save_location="hdfs:///tables/sample_output",
     save_type="parquet",
     save_params={},
-    schema=pa.DataFrameSchema({
+    schema={
         "small_values": pa.Column(float, pa.Check.less_than(100)),
         "one_to_three": pa.Column(int, pa.Check.isin([1, 2, 3])),
         "phone_number": pa.Column(str, pa.Check.str_matches(r'^[a-z0-9-]+$')),
-    })
+    }
 )
 ```
 You can check the [Pandera documentation](https://pandera.readthedocs.io/en/stable/) for how to declare your schema and your validation rules.
@@ -47,6 +47,7 @@ The application won't run without a `config.yaml` configuration file in the root
 
 - `database_url`: URL used by SQLAlchemy to connect to the utility database
 - `database_schema`: Schema where utility tables will be created
+- `provider`: Where output data will be stored. Supported values: `S3`, `GCS`, `HDFS`, `LOCAL`
 
 ### Requirements
 

@@ -106,23 +106,23 @@ def save_table_to_cloud(table: pyarrow.Table, provider: str, format: str, path: 
     """
     Save a pyarrow Table to AWS S3, GCP GCS, HDFS, or local disk in the specified format.
     :param table: PyArrow Table to save.
-    :param provider: String indicating the destination ('AWS', 'GCP', 'HDFS', 'LOCAL').
+    :param provider: String indicating the destination ('S3', 'GCS', 'HDFS', 'LOCAL').
     :param format: String indicating the format to save ('orc', 'parquet', 'deltalake').
     :param path: The path to save the file (bucket/folder for cloud, HDFS path, or local file path).
     :param params: Additional parameters to pass to the saving function.
     """
-    if provider not in ['AWS', 'GCP', 'HDFS', 'LOCAL']:
-        raise ValueError("Provider must be 'AWS', 'GCP', 'HDFS', or 'LOCAL'")
+    if provider not in ['S3', 'GCS', 'HDFS', 'LOCAL']:
+        raise ValueError("Provider must be 'S3', 'GCS', 'HDFS', or 'LOCAL'")
     
     if format not in ['orc', 'parquet', 'deltalake']:
         raise ValueError("Format must be 'orc', 'parquet', or 'deltalake'")
 
     # Define the filesystem based on the provider
-    if provider == 'AWS':
+    if provider == 'S3':
         # Create an S3 filesystem using pyarrow's S3FileSystem
         s3 = pyarrow.fs.S3FileSystem()
         filesystem = s3
-    elif provider == 'GCP':
+    elif provider == 'GCS':
         # Create a GCS filesystem using pyarrow's GcsFileSystem
         gcs = pyarrow.fs.GcsFileSystem()
         filesystem = gcs
@@ -151,19 +151,19 @@ def save_dataframe_to_cloud(df: pd.DataFrame, provider: str, format: str, path: 
     Save a pandas DataFrame to AWS S3, GCP GCS, HDFS, or local disk in the specified format.
     
     :param df: Pandas DataFrame to save.
-    :param provider: String indicating the destination ('AWS', 'GCP', 'HDFS', 'LOCAL').
+    :param provider: String indicating the destination ('S3', 'GCS', 'HDFS', 'LOCAL').
     :param format: String indicating the format to save ('orc', 'parquet', 'deltalake').
     :param path: The path to save the file (bucket/folder for cloud, HDFS path, or local file path).
     :param params: Additional parameters to pass to the saving function.
     """
-    if provider not in ['AWS', 'GCP', 'HDFS', 'LOCAL']:
-        raise ValueError("Provider must be 'AWS', 'GCP', 'HDFS', or 'LOCAL'")
+    if provider not in ['S3', 'GCS', 'HDFS', 'LOCAL']:
+        raise ValueError("Provider must be 'S3', 'GCS', 'HDFS', or 'LOCAL'")
     
     if format not in ['orc', 'parquet', 'deltalake']:
         raise ValueError("Format must be 'orc', 'parquet', or 'deltalake'")
 
     # Save to AWS S3
-    if provider == 'AWS':
+    if provider == 'S3':
         import awswrangler as wr
         if format == 'orc':
             wr.s3.to_orc(df=df, path=path, **params)
@@ -173,7 +173,7 @@ def save_dataframe_to_cloud(df: pd.DataFrame, provider: str, format: str, path: 
             wr.s3.to_deltalake(df=df, path=path, **params)
 
     # Save to GCP GCS
-    elif provider == 'GCP':
+    elif provider == 'GCS':
         import gcsfs
         fs = gcsfs.GCSFileSystem()
         if format == 'orc':
