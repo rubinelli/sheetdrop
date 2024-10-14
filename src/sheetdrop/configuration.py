@@ -30,7 +30,7 @@ def load_configurations(modules_dir):
 class Configuration():
     name: str
     save_location: str
-    schema: pa.DataFrameSchema
+    schema: dict[str, pa.Column]
     load_type: str = "excel"
     load_params: dict[str, Any] = None
     save_type: str = "parquet"
@@ -40,7 +40,7 @@ class Configuration():
 class SheetConfiguration():
     sheet: str | int
     save_location: str
-    schema: pa.DataFrameSchema
+    schema: dict[str, pa.Column]
     save_type: str = "parquet"
     save_params: dict[str, Any] = None
     

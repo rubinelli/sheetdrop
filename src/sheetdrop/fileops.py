@@ -3,9 +3,11 @@ import io
 import os
 import importlib
 import pandas as pd
-import pandera as pa
-from sheetdrop.configuration import load_configurations, Configuration, MultipleSheetConfiguration
+import pyarrow
+from pyarrow.orc import ORCWriter
+from pyarrow.fs import HadoopFileSystem
 from random import randint
+from sheetdrop.configuration import load_configurations, Configuration, MultipleSheetConfiguration
 
 # Basic I/O operations
 
@@ -60,7 +62,7 @@ def store_temp_file(file_id: str, file: io.BytesIO) -> str:
         The path of the stored file
     """
     # add random sufix
-    path = f"temp/{file_id}_{randint(0, 1000)}"
+    path = f"temp/{file_id}_{randint(0, 1000000)}"
     if not os.path.exists("temp"):
         os.makedirs("temp")
     with open(path, "wb") as f:
@@ -98,3 +100,111 @@ def clear_temp_dir():
                     os.unlink(file_path)
             except Exception as e:
                 print(f"Failed to delete {file_path}. {e}")
+
+
+def save_table_to_cloud(table: pyarrow.Table, provider: str, format: str, path: str, params: dict = {}):
+    """
+    Save a pyarrow Table to AWS S3, GCP GCS, HDFS, or local disk in the specified format.
+    :param table: PyArrow Table to save.
+    :param provider: String indicating the destination ('AWS', 'GCP', 'HDFS', 'LOCAL').
+    :param format: String indicating the format to save ('orc', 'parquet', 'deltalake').
+    :param path: The path to save the file (bucket/folder for cloud, HDFS path, or local file path).
+    :param params: Additional parameters to pass to the saving function.
+    """
+    if provider not in ['AWS', 'GCP', 'HDFS', 'LOCAL']:
+        raise ValueError("Provider must be 'AWS', 'GCP', 'HDFS', or 'LOCAL'")
+    
+    if format not in ['orc', 'parquet', 'deltalake']:
+        raise ValueError("Format must be 'orc', 'parquet', or 'deltalake'")
+
+    # Define the filesystem based on the provider
+    if provider == 'AWS':
+        # Create an S3 filesystem using pyarrow's S3FileSystem
+        s3 = pyarrow.fs.S3FileSystem()
+        filesystem = s3
+    elif provider == 'GCP':
+        # Create a GCS filesystem using pyarrow's GcsFileSystem
+        gcs = pyarrow.fs.GcsFileSystem()
+        filesystem = gcs
+    elif provider == 'HDFS':
+        # Create an HDFS filesystem
+        hdfs = pyarrow.fs.HadoopFileSystem()
+        filesystem = hdfs
+    elif provider == 'LOCAL':
+        # Use the local filesystem (default)
+        filesystem = pyarrow.fs.LocalFileSystem()
+
+    # Write to the appropriate format
+    if format == 'orc':
+        # Save as ORC
+        with filesystem.open_output_stream(path) as f:
+            pyarrow.orc.write_table(table, f, **params)
+    elif format == 'parquet':
+        # Save as Parquet
+        pyarrow.parquet.write_table(table, path, filesystem=filesystem, **params)
+    elif format == 'deltalake':
+        # Deltalake currently does not have direct pyarrow support for cloud filesystems
+        raise NotImplementedError("Deltalake is not supported for this implementation.")
+
+def save_dataframe_to_cloud(df: pd.DataFrame, provider: str, format: str, path: str, params: dict = {}):
+    """
+    Save a pandas DataFrame to AWS S3, GCP GCS, HDFS, or local disk in the specified format.
+    
+    :param df: Pandas DataFrame to save.
+    :param provider: String indicating the destination ('AWS', 'GCP', 'HDFS', 'LOCAL').
+    :param format: String indicating the format to save ('orc', 'parquet', 'deltalake').
+    :param path: The path to save the file (bucket/folder for cloud, HDFS path, or local file path).
+    :param params: Additional parameters to pass to the saving function.
+    """
+    if provider not in ['AWS', 'GCP', 'HDFS', 'LOCAL']:
+        raise ValueError("Provider must be 'AWS', 'GCP', 'HDFS', or 'LOCAL'")
+    
+    if format not in ['orc', 'parquet', 'deltalake']:
+        raise ValueError("Format must be 'orc', 'parquet', or 'deltalake'")
+
+    # Save to AWS S3
+    if provider == 'AWS':
+        import awswrangler as wr
+        if format == 'orc':
+            wr.s3.to_orc(df=df, path=path, **params)
+        elif format == 'parquet':
+            wr.s3.to_parquet(df=df, path=path, **params)
+        elif format == 'deltalake':
+            wr.s3.to_deltalake(df=df, path=path, **params)
+
+    # Save to GCP GCS
+    elif provider == 'GCP':
+        import gcsfs
+        fs = gcsfs.GCSFileSystem()
+        if format == 'orc':
+            with fs.open(path, 'wb') as f:
+                df.to_orc(f, **params)
+        elif format == 'parquet':
+            df.to_parquet(path, engine='pyarrow', storage_options={"token": fs.credentials}, **params)
+        elif format == 'deltalake':
+            raise NotImplementedError("Deltalake is not supported for GCP in this implementation.")
+
+    # Save to HDFS
+    elif provider == 'HDFS':
+        hdfs = HadoopFileSystem()
+        if format == 'orc':
+            with hdfs.open_output_stream(path) as f:
+                orc_writer = ORCWriter(f)
+                orc_writer.write_table(pa.Table.from_pandas(df))
+        elif format == 'parquet':
+            df.to_parquet(path, engine='pyarrow', filesystem=hdfs, **params)
+        elif format == 'deltalake':
+            raise NotImplementedError("Deltalake is not supported for HDFS in this implementation.")
+    
+    # Save to local disk
+    elif provider == 'LOCAL':
+        if format == 'orc':
+            with open(path, 'wb') as f:
+                orc_writer = ORCWriter(f)
+                orc_writer.write_table(pa.Table.from_pandas(df))
+        elif format == 'parquet':
+            df.to_parquet(path, engine='pyarrow', **params)
+        elif format == 'deltalake':
+            import deltalake
+            deltalake.write_deltalake(path, df, **params)
+

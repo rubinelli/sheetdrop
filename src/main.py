@@ -2,13 +2,14 @@ import io
 import os
 import importlib
 import pandas as pd
-import pandera as pa
+import pandera as pdr
+import pyarrow
 import yaml
 from fastapi import FastAPI, File, Request, UploadFile, BackgroundTasks
 from fastapi.templating import Jinja2Templates
 from typing import Optional, Annotated
 from sheetdrop.configuration import load_configurations, Configuration, MultipleSheetConfiguration
-from sheetdrop.fileops import convert_file_to_dataframe, clear_temp_dir
+from sheetdrop.fileops import convert_file_to_dataframe, clear_temp_dir, save_dataframe_to_cloud, save_table_to_cloud
 from sheetdrop.fileops import store_temp_file, recover_temp_file, delete_temp_file
 from sheetdrop.db import create_engine, save_file_status, load_latest_file_status
 
@@ -25,7 +26,7 @@ except FileNotFoundError:
 # call create_engine to get connection to utility database
 engine = create_engine(general_config["database_url"])
 
-#TODO: check if tables exist and are updated
+#TODO: check if tables exist and are up to date
 
 
 app = FastAPI()
@@ -96,10 +97,15 @@ async def process_file(file_id: str, file_path: str):
     dataframe = convert_file_to_dataframe(file_id, file_conf, file_path)
     schema = file_conf.schema
     try:
-        schema.validate(dataframe, lazy=True)
+        pdr_schema = pdr.DataFrameSchema(schema, coerce=True)
+        pdr_schema.validate(dataframe, lazy=True, inplace=True)
+        save_file_status(engine, file_id, "saving")
+        # save dataframe to appropriate location
+        save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
         save_file_status(engine, file_id, "success")
-        #TODO: save dataframe to appropriate location
-    except pa.errors.SchemaErrors as exc:
+    except (pyarrow.lib.ArrowInvalid, ValueError) as exc:
+        save_file_status(engine, file_id, "failed" , str(exc))
+    except pdr.errors.SchemaErrors as exc:
         save_file_status(engine, file_id, "failed" , str(exc.failure_cases).split("\n"))
     finally:
         delete_temp_file(file_path)
@@ -113,10 +119,12 @@ def process_file_multiple_sheets(file_id: str, file_path: str):
     for name, dataframe in dataframe_dict.items():
         schema = configurations[file_id].schema
         try:
-            schema.validate(dataframe, lazy=True)
+            pdr_schema = pdr.DataFrameSchema(schema, coerce=True)
+            pdr_schema.validate(dataframe, lazy=True, inplace=True)
             partial_success = True
-            #TODO: save dataframe to appropriate location
-        except pa.errors.SchemaErrors as exc:
+            # save dataframe to appropriate location
+            save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
+        except pdr.errors.SchemaErrors as exc:
             errors.extend([f"{name}: {cause}" for cause in exc.failure_cases])
             break
     if errors and not partial_success:

@@ -3,3 +3,4 @@ __pycache__
 src/temp
 config.yaml
 *.db
+*.parquet
