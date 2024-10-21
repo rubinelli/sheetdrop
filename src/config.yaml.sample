@@ -24,3 +24,8 @@ database_url: sqlite:///sheetdrop.db
 # Schema where utility tables will be created
 database_schema: sheetdrop
 
+# Provider used to store output data. Currently Delta Lake is not supported on GCS
+# storage_provider: s3
+# storage_provider: gcs
+# storage_provider: hdfs
+# storage_provider: local

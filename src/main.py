@@ -52,13 +52,17 @@ async def show_file(file_id: str, request: Request):
     return templates.TemplateResponse("file.html", {"file_id": file_id, "file_config": configurations[file_id], "status": status, "request": request})
 
 @app.post("/file/{file_id}")
-async def receive_file(file_id: str, file: UploadFile, background_tasks: BackgroundTasks):
+async def receive_file(file_id: str, file: UploadFile, request: Request, background_tasks: BackgroundTasks):
     """
     Endpoint to receive a file and start a background task to validate it.
     file_id: str
         The id of the file to validate
     file: UploadFile
         The file to validate
+    request: Request
+        The request object
+    background_tasks: BackgroundTasks
+        The background tasks object
     Returns:
         A 202 Accepted response if the background task was successfully started.
         A 404 Not Found response if the file_id is not found in the configurations.
@@ -69,8 +73,13 @@ async def receive_file(file_id: str, file: UploadFile, background_tasks: Backgro
     contents = io.BytesIO(file.file.read())
     file_path = store_temp_file(file_id, contents)
     background_tasks.add_task(process_file, file_id, file_path)
-    return {"message": "Validation started in background"}, 202
-
+    if 'text/html' in request.headers.get('accept'):
+        # Return Jinja template for browser requests
+        return templates.TemplateResponse("redirect.html", {"file_id": file_id, "message": "Validation started in background", "request": request})
+    else:
+        # Return JSON response for API requests
+        return {"message": "Validation started in background"}, 202
+    
 @app.get("/file/{file_id}/status")
 async def get_file_status(file_id: str):
     """

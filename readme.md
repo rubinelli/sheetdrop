@@ -46,8 +46,8 @@ When specifying multiple sheets, you shouldn't specify the `sheets` argument in 
 The application won't run without a `config.yaml` configuration file in the root directory. The file should contain the following fields:
 
 - `database_url`: URL used by SQLAlchemy to connect to the utility database
-- `database_schema`: Schema where utility tables will be created
-- `provider`: Where output data will be stored. Supported values: `S3`, `GCS`, `HDFS`, `LOCAL`
+- `database_schema`: Schema where utility tables will be created (Optional. Must exist in the database; the application will not create it)
+- `provider`: Where output data will be stored. Supported values: `s3`, `gcs`, `hdfs`, `local`
 
 ### Requirements
 
