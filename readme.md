@@ -8,7 +8,7 @@ A web application for validating, converting, and storing CSV and Excel files in
 
 ### File definitions
 
-The configuration for each file/table is loaded from the `file_definitions` directory. Each file in this directory should contain a single configuration class. This is an example of a valid configuration:
+The configuration for each file/table is loaded from the `file_definitions` directory. Each file in this directory should contain a single configuration object. This is an example of a valid configuration:
 ```python
 import pandera as pa
 from sheetdrop.configuration import Configuration

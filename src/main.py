@@ -9,7 +9,7 @@ from fastapi import FastAPI, File, Request, UploadFile, BackgroundTasks
 from fastapi.templating import Jinja2Templates
 from typing import Optional, Annotated
 from sheetdrop.configuration import load_configurations, Configuration, MultipleSheetConfiguration
-from sheetdrop.fileops import convert_file_to_dataframe, clear_temp_dir, save_dataframe_to_cloud, save_table_to_cloud
+from sheetdrop.fileops import convert_file_to_dataframe, convert_file_to_dataframe_dict, clear_temp_dir, save_dataframe_to_cloud, save_table_to_cloud
 from sheetdrop.fileops import store_temp_file, recover_temp_file, delete_temp_file
 from sheetdrop.db import create_engine, save_file_status, load_latest_file_status
 
@@ -73,7 +73,7 @@ async def receive_file(file_id: str, file: UploadFile, request: Request, backgro
     contents = io.BytesIO(file.file.read())
     file_path = store_temp_file(file_id, contents)
     background_tasks.add_task(process_file, file_id, file_path)
-    if 'text/html' in request.headers.get('accept'):
+    if 'text/html' in request.headers.get('accept', ''):
         # Return Jinja template for browser requests
         return templates.TemplateResponse("redirect.html", {"file_id": file_id, "message": "Validation started in background", "request": request})
     else:
@@ -92,7 +92,7 @@ async def get_file_status(file_id: str):
     status = load_latest_file_status(engine, file_id)
     return {"status": status}
 
-async def process_file(file_id: str, file_path: str):
+async def process_file(file_id: str, file_path: str) -> None:
     """
     Validates and stores a file asynchronously.
     file_id: str
@@ -102,25 +102,26 @@ async def process_file(file_id: str, file_path: str):
     """
     file_conf = configurations[file_id]
     if isinstance(file_conf, MultipleSheetConfiguration):
-        process_file_multiple_sheets(file_id, file_path)
-    dataframe = convert_file_to_dataframe(file_id, file_conf, file_path)
-    schema = file_conf.schema
-    try:
-        pdr_schema = pdr.DataFrameSchema(schema, coerce=True)
-        pdr_schema.validate(dataframe, lazy=True, inplace=True)
-        save_file_status(engine, file_id, "saving")
-        # save dataframe to appropriate location
-        save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
-        save_file_status(engine, file_id, "success")
-    except (pyarrow.lib.ArrowInvalid, ValueError) as exc:
-        save_file_status(engine, file_id, "failed" , str(exc))
-    except pdr.errors.SchemaErrors as exc:
-        save_file_status(engine, file_id, "failed" , str(exc.failure_cases).split("\n"))
-    finally:
-        delete_temp_file(file_path)
+        process_file_multiple_sheets(file_id, file_path, file_conf)
+    else:
+        dataframe = convert_file_to_dataframe(file_id, file_conf, file_path)
+        schema = file_conf.schema
+        try:
+            pdr_schema = pdr.DataFrameSchema(schema, coerce=True)
+            pdr_schema.validate(dataframe, lazy=True, inplace=True)
+            save_file_status(engine, file_id, "saving")
+            # save dataframe to appropriate location
+            save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
+            save_file_status(engine, file_id, "success")
+        except (pyarrow.lib.ArrowInvalid, ValueError) as exc:
+            save_file_status(engine, file_id, "failed" , str(exc))
+        except pdr.errors.SchemaErrors as exc:
+            save_file_status(engine, file_id, "failed" , str(exc.failure_cases).split("\n"))
+        finally:
+            delete_temp_file(file_path)
 
 
-def process_file_multiple_sheets(file_id: str, file_path: str):
+def process_file_multiple_sheets(file_id: str, file_path: str, file_conf: MultipleSheetConfiguration) -> None:
     """Validates and stores multiple sheets of a file asynchronously."""
     dataframe_dict = convert_file_to_dataframe_dict(file_id, configurations[file_id], file_path)
     errors = []
