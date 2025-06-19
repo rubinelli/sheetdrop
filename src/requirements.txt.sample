@@ -28,7 +28,7 @@ google-cloud-storage==2.18.2
 # (obs: sqlite's driver is already included)
 #
 # PostgreSQL / Redshift
-psycopg2=2.9.9
+psycopg2==2.9.9
 # MySQL
 PyMySQL==1.1.1
 # Oracle
