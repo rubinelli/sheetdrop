@@ -1,18 +1,28 @@
+import importlib
 import io
 import os
-import importlib
+from typing import Annotated, Optional
+
 import pandas as pd
 import pandera as pdr
 import pyarrow
 import yaml
-from fastapi import FastAPI, File, Request, UploadFile, BackgroundTasks
+from fastapi import BackgroundTasks, FastAPI, File, Request, UploadFile
 from fastapi.templating import Jinja2Templates
-from typing import Optional, Annotated
-from sheetdrop.configuration import load_configurations, Configuration, MultipleSheetConfiguration
-from sheetdrop.fileops import convert_file_to_dataframe, convert_file_to_dataframe_dict, clear_temp_dir, save_dataframe_to_cloud, save_table_to_cloud
-from sheetdrop.fileops import store_temp_file, recover_temp_file, delete_temp_file
-from sheetdrop.db import create_engine, save_file_status, load_latest_file_status
+
+from alembic import command
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+from sheetdrop.configuration import (Configuration, MultipleSheetConfiguration,
+                                     load_configurations)
+from sheetdrop.db import (create_engine, load_latest_file_status,
+                          save_file_status)
 from sheetdrop.enums import Status
+from sheetdrop.fileops import (clear_temp_dir, convert_file_to_dataframe,
+                               convert_file_to_dataframe_dict,
+                               delete_temp_file, recover_temp_file,
+                               save_dataframe_to_cloud, save_table_to_cloud,
+                               store_temp_file)
 
 # import general configs from config.yaml
 general_config = {}
@@ -27,7 +37,15 @@ except FileNotFoundError:
 # call create_engine to get connection to utility database
 engine = create_engine(general_config["database_url"])
 
-#TODO: check if tables exist and are up to date
+alembic_cfg = Config("alembic.ini")
+script = ScriptDirectory.from_config(alembic_cfg)
+
+# check if database is up to date
+try:
+    command.check(alembic_cfg)
+except Exception as e:
+    print(f"ERROR: Database is not up to date. Please run alembic upgrade head. Details: {e}")
+    exit(1)
 
 
 app = FastAPI()

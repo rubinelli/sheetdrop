@@ -17,11 +17,16 @@ def load_configurations(modules_dir):
 
             # Check if the module has an attribute called "configuration"
             if hasattr(module, "configuration"):
-                #TODO: validate the configuration before adding to dictionary
-                if not isinstance(module.configuration, Configuration) and not isinstance(module.configuration, MultipleSheetConfiguration):
-                    errors.append(f"Invalid configuration for {module_name}: {module.configuration}")
-                configurations[module_name] = module.configuration
-                print(f"Loaded configuration: {module_name}")
+                config = module.configuration
+                if isinstance(config, (Configuration, MultipleSheetConfiguration)):
+                    validation_errors = config.validate()
+                    if validation_errors:
+                        errors.append(f"Invalid configuration for {module_name}: {', '.join(validation_errors)}")
+                    else:
+                        configurations[module_name] = config
+                        print(f"Loaded configuration: {module_name}")
+                else:
+                    errors.append(f"Invalid configuration for {module_name}: {config}")
             else:
                 errors.append(f"Module {module_name} does not have a configuration attribute")
     return configurations, errors
@@ -35,7 +40,21 @@ class Configuration():
     load_params: dict[str, Any] = None
     save_type: str = "parquet"
     save_params: dict[str, Any] = None
-    
+
+    def validate(self) -> list[str]:
+        errors = []
+        if not isinstance(self.name, str) or not self.name:
+            errors.append("Configuration.name must be a non-empty string")
+        if not isinstance(self.save_location, str) or not self.save_location:
+            errors.append("Configuration.save_location must be a non-empty string")
+        if not isinstance(self.schema, dict):
+            errors.append("Configuration.schema must be a dictionary")
+        if self.load_params and not isinstance(self.load_params, dict):
+            errors.append("Configuration.load_params must be a dictionary")
+        if self.save_params and not isinstance(self.save_params, dict):
+            errors.append("Configuration.save_params must be a dictionary")
+        return errors
+
 @dataclass
 class SheetConfiguration():
     sheet: str | int
@@ -43,9 +62,37 @@ class SheetConfiguration():
     schema: dict[str, pa.Column]
     save_type: str = "parquet"
     save_params: dict[str, Any] = None
+
+    def validate(self) -> list[str]:
+        errors = []
+        if not isinstance(self.sheet, (str, int)) or (isinstance(self.sheet, str) and not self.sheet):
+            errors.append("SheetConfiguration.sheet must be a non-empty string or an integer")
+        if not isinstance(self.save_location, str) or not self.save_location:
+            errors.append("SheetConfiguration.save_location must be a non-empty string")
+        if not isinstance(self.schema, dict):
+            errors.append("SheetConfiguration.schema must be a dictionary")
+        if self.save_params and not isinstance(self.save_params, dict):
+            errors.append("SheetConfiguration.save_params must be a dictionary")
+        return errors
     
 @dataclass
 class MultipleSheetConfiguration():
     name: str
     sheets: list[SheetConfiguration]
     load_params: dict[str, Any] = None
+
+    def validate(self) -> list[str]:
+        errors = []
+        if not isinstance(self.name, str) or not self.name:
+            errors.append("MultipleSheetConfiguration.name must be a non-empty string")
+        if not isinstance(self.sheets, list) or not self.sheets:
+            errors.append("MultipleSheetConfiguration.sheets must be a non-empty list of SheetConfiguration objects")
+        else:
+            for i, sheet_conf in enumerate(self.sheets):
+                if not isinstance(sheet_conf, SheetConfiguration):
+                    errors.append(f"Item at index {i} in MultipleSheetConfiguration.sheets is not a SheetConfiguration object")
+                else:
+                    errors.extend(sheet_conf.validate())
+        if self.load_params and not isinstance(self.load_params, dict):
+            errors.append("MultipleSheetConfiguration.load_params must be a dictionary")
+        return errors
