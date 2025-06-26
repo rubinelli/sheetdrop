@@ -4,8 +4,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-
-import yaml
+from sheetdrop.configs import app_configs
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,8 +24,7 @@ target_metadata = dbmodels.Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-app_configs = yaml.safe_load(open("config.yaml"))
-config.set_main_option("sqlalchemy.url", app_configs["database_url"])
+config.set_main_option("sqlalchemy.url", app_configs.database_url)
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

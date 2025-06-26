@@ -41,13 +41,15 @@ This option is supported by the `MultipleSheetConfiguration` class and only avai
 
 When specifying multiple sheets, you shouldn't specify the `sheets` argument in `load_params`. Instead, these are collected from each `sheet` param in your list. This param can be the sheet's index (an int) or its name (a string).
 
-### General configuration file
+### General configuration
 
-The application won't run without a `config.yaml` configuration file in the root directory. The file should contain the following fields:
+The application can be configured using environment variables or a `config.yaml` file in the `src` directory. Environment variables take precedence.
 
-- `database_url`: URL used by SQLAlchemy to connect to the utility database
-- `database_schema`: Schema where utility tables will be created (Optional. Must exist in the database; the application will not create it)
-- `provider`: Where output data will be stored. Supported values: `s3`, `gcs`, `hdfs`, `local`
+The following variables are required:
+
+- `DATABASE_URL`: URL used by SQLAlchemy to connect to the utility database
+- `DATABASE_SCHEMA`: Schema where utility tables will be created (Optional. Must exist in the database; the application will not create it)
+- `STORAGE_PROVIDER`: Where output data will be stored. Supported values: `s3`, `gcs`, `hdfs`, `local`
 
 ### Requirements
 

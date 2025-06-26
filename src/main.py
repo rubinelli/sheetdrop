@@ -6,7 +6,6 @@ from typing import Annotated, Optional
 import pandas as pd
 import pandera as pdr
 import pyarrow
-import yaml
 from fastapi import BackgroundTasks, FastAPI, File, Request, UploadFile
 from fastapi.templating import Jinja2Templates
 
@@ -23,19 +22,10 @@ from sheetdrop.fileops import (clear_temp_dir, convert_file_to_dataframe,
                                delete_temp_file, recover_temp_file,
                                save_dataframe_to_cloud, save_table_to_cloud,
                                store_temp_file)
-
-# import general configs from config.yaml
-general_config = {}
-try:
-    with open("config.yaml") as f:
-        general_config = yaml.safe_load(f)
-except FileNotFoundError:
-    print("ERROR: config.yaml not found. Please create a config.yaml file in the same directory as this file.")
-    print("The file config.yaml.sample can be use as a template.")
-    exit(1)
+from sheetdrop.configs import app_configs
 
 # call create_engine to get connection to utility database
-engine = create_engine(general_config["database_url"])
+engine = create_engine(app_configs.database_url)
 
 alembic_cfg = Config("alembic.ini")
 script = ScriptDirectory.from_config(alembic_cfg)
@@ -158,7 +148,7 @@ def validate_and_save_dataframe(file_id: str, dataframe: pd.DataFrame, file_conf
         pdr_schema.validate(dataframe, lazy=True, inplace=True)
         save_file_status(engine, file_id, Status.SAVING)
         # save dataframe to appropriate location
-        save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
+        save_dataframe_to_cloud(dataframe, app_configs.storage_provider, file_conf.save_type, file_conf.save_location, file_conf.save_params)
         save_file_status(engine, file_id, Status.SUCCESS)
     except (pyarrow.lib.ArrowInvalid, ValueError) as exc:
         save_file_status(engine, file_id, Status.FAILED , str(exc))
