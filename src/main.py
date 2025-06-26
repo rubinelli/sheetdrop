@@ -12,6 +12,7 @@ from sheetdrop.configuration import load_configurations, Configuration, Multiple
 from sheetdrop.fileops import convert_file_to_dataframe, convert_file_to_dataframe_dict, clear_temp_dir, save_dataframe_to_cloud, save_table_to_cloud
 from sheetdrop.fileops import store_temp_file, recover_temp_file, delete_temp_file
 from sheetdrop.db import create_engine, save_file_status, load_latest_file_status
+from sheetdrop.enums import Status
 
 # import general configs from config.yaml
 general_config = {}
@@ -68,8 +69,8 @@ async def receive_file(file_id: str, file: UploadFile, request: Request, backgro
         A 404 Not Found response if the file_id is not found in the configurations.
     """
     if(file_id not in configurations):
-        return {"message": "File ID not found"}, 404
-    save_file_status(engine, file_id, "in_progress")
+        return {"error": "File ID not found"}, 404
+    save_file_status(engine, file_id, Status.IN_PROGRESS)
     contents = io.BytesIO(file.file.read())
     file_path = store_temp_file(file_id, contents)
     background_tasks.add_task(process_file, file_id, file_path)
@@ -100,25 +101,15 @@ async def process_file(file_id: str, file_path: str) -> None:
     file_path: str
         The temporary path of file to validate
     """
-    file_conf = configurations[file_id]
-    if isinstance(file_conf, MultipleSheetConfiguration):
-        process_file_multiple_sheets(file_id, file_path, file_conf)
-    else:
-        dataframe = convert_file_to_dataframe(file_id, file_conf, file_path)
-        schema = file_conf.schema
-        try:
-            pdr_schema = pdr.DataFrameSchema(schema, coerce=True)
-            pdr_schema.validate(dataframe, lazy=True, inplace=True)
-            save_file_status(engine, file_id, "saving")
-            # save dataframe to appropriate location
-            save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
-            save_file_status(engine, file_id, "success")
-        except (pyarrow.lib.ArrowInvalid, ValueError) as exc:
-            save_file_status(engine, file_id, "failed" , str(exc))
-        except pdr.errors.SchemaErrors as exc:
-            save_file_status(engine, file_id, "failed" , str(exc.failure_cases).split("\n"))
-        finally:
-            delete_temp_file(file_path)
+    try:
+        file_conf = configurations[file_id]
+        if isinstance(file_conf, MultipleSheetConfiguration):
+            process_file_multiple_sheets(file_id, file_path, file_conf)
+        else:
+            dataframe = convert_file_to_dataframe(file_id, file_conf, file_path)
+            validate_and_save_dataframe(file_id, dataframe, file_conf)
+    finally:
+        delete_temp_file(file_path)
 
 
 def process_file_multiple_sheets(file_id: str, file_path: str, file_conf: MultipleSheetConfiguration) -> None:
@@ -127,22 +118,34 @@ def process_file_multiple_sheets(file_id: str, file_path: str, file_conf: Multip
     errors = []
     partial_success = False
     for name, dataframe in dataframe_dict.items():
-        schema = configurations[file_id].schema
         try:
-            pdr_schema = pdr.DataFrameSchema(schema, coerce=True)
-            pdr_schema.validate(dataframe, lazy=True, inplace=True)
+            validate_and_save_dataframe(file_id, dataframe, file_conf)
             partial_success = True
-            # save dataframe to appropriate location
-            save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
         except pdr.errors.SchemaErrors as exc:
             errors.extend([f"{name}: {cause}" for cause in exc.failure_cases])
             break
     if errors and not partial_success:
-        save_file_status(engine, file_id, "failed", errors)
+        save_file_status(engine, file_id, Status.FAILED, errors)
     elif errors:
-        save_file_status(engine, file_id, "partial_success", errors)
+        save_file_status(engine, file_id, Status.PARTIAL_SUCCESS, errors)
     else:
-        save_file_status(engine, file_id, "success")
+        save_file_status(engine, file_id, Status.SUCCESS)
+
+
+def validate_and_save_dataframe(file_id: str, dataframe: pd.DataFrame, file_conf: Configuration) -> None:
+    """Validates and saves a dataframe."""
+    schema = file_conf.schema
+    try:
+        pdr_schema = pdr.DataFrameSchema(schema, coerce=True)
+        pdr_schema.validate(dataframe, lazy=True, inplace=True)
+        save_file_status(engine, file_id, Status.SAVING)
+        # save dataframe to appropriate location
+        save_dataframe_to_cloud(dataframe, general_config["storage_provider"], file_conf.save_type, file_conf.save_location, file_conf.save_params)
+        save_file_status(engine, file_id, Status.SUCCESS)
+    except (pyarrow.lib.ArrowInvalid, ValueError) as exc:
+        save_file_status(engine, file_id, Status.FAILED , str(exc))
+    except pdr.errors.SchemaErrors as exc:
+        save_file_status(engine, file_id, Status.FAILED , str(exc.failure_cases).split("\n"))
 
 
 if __name__ == "__main__":

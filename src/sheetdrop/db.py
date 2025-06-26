@@ -3,6 +3,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import select, desc
 from sheetdrop.dbmodels import FileStatus, FileStatusDetail
+from sheetdrop.enums import Status
 
 def create_engine(url: str) -> Engine:
     """Create a database engine for use within FastApi
@@ -15,33 +16,17 @@ def create_engine(url: str) -> Engine:
     """
     return sqlalchemy.create_engine(url)
 
-def save_file_status_v1(engine: Engine, file_id: str, status: str, status_detail: list[str]) -> None:
-    """Save the status of a file in the database
-    Parameters:
-        engine: sqlalchemy.engine.Engine
-            The engine for the database
-        file_id: str
-            The ID of the file
-        status: str
-            The status of the file
-        status_detail: list[str]
-            The detail of the status
-    """
-    with engine.connect() as connection:
-        result = connection.execute(FileStatus.__table__.insert(), file_id=file_id, status=status)
-        file_status_id = result.inserted_primary_key[0]
-        for detail in status_detail:
-            connection.execute(FileStatusDetail.__table__.insert(), file_id=file_id, file_status_id=file_status_id, status_detail=detail)
 
 
-def save_file_status(engine: Engine, file_id: str, status: str, status_detail: list[str] = None) -> None:
+
+def save_file_status(engine: Engine, file_id: str, status: Status, status_detail: list[str] = None) -> None:
     """Save the status of a file in the database
     Parameters:
         engine: sqlalchemy.engine.Engine
             The engine for the database
         file_id: str    
             The ID of the file
-        status: str 
+        status: Status 
             The status of the file
         status_detail: list[str]    
             The detail of the status
@@ -49,7 +34,7 @@ def save_file_status(engine: Engine, file_id: str, status: str, status_detail: l
     # Create a session
     with Session(engine) as session:
         # Create a new FileStatus entry
-        new_status = FileStatus(file_id=file_id, status=status)
+        new_status = FileStatus(file_id=file_id, status=status.value)
         # Add the status details to the new status
         for detail in status_detail or []:
             new_status_detail = FileStatusDetail(status_detail=detail)

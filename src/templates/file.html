@@ -17,10 +17,11 @@
 
         <form action="/file/{{ file_id }}" method="post" enctype="multipart/form-data">
             <div class="mb-3">
-                <label for="file" class="form-label">File</label>
-                <input type="file" class="form-control" id="file" name="file" required>
+                <label for="file" class="form-label">Select a file to upload. Supported formats: {{ file_config.allowed_extensions|join(', ') }}</label>
+                <input type="file" class="form-control" id="file" name="file" accept=".{{ file_config.allowed_extensions|join(', .') }}" required>
             </div>
             <button type="submit" class="btn btn-primary" disabled>Upload</button>
+            <small class="form-text text-muted">The upload button will be enabled once you select a file.</small>
         </form>
         <script>
             document.querySelector("input[type=file]").addEventListener("change", function() {
@@ -31,18 +32,18 @@
             <p>Current status: {{ status.status }}</p>
             {% if status.status_details %}
                 <table class="table table-striped table-bordered">
-                <thead>
-                    <tr>
-                        <th scope="col"><pre class="text-monospace bold">{{ status.status_details[0].status_detail }}</pre></th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for status_detail in status.status_details[1:] %}
-                    <tr>
-                        <td><pre class="text-monospace">{{ status_detail.status_detail }}</pre></td>
-                    </tr>
+                    <thead>
+                        <tr>
+                            <th scope="col">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                {% for status_detail in status.status_details %}
+                        <tr>
+                            <td><pre class="text-monospace">{{ status_detail.status_detail }}</pre></td>
+                        </tr>
                 {% endfor %}
-                </tbody>
+                    </tbody>
                 </table>
             {% endif %}
         {% else %}
